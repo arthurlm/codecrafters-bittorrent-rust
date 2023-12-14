@@ -1,38 +1,40 @@
-use serde_json;
-use std::env;
+use std::{fs, path::PathBuf};
 
-// Available if you need it!
-// use serde_bencode
+use bittorrent_starter_rust::bencode_parser::BencodeValue;
+use clap::{Parser, Subcommand};
 
-#[allow(dead_code)]
-fn decode_bencoded_value(encoded_value: &str) -> serde_json::Value {
-    // If encoded_value starts with a digit, it's a number
-    if encoded_value.chars().next().unwrap().is_digit(10) {
-        // Example: "5:hello" -> "hello"
-        let colon_index = encoded_value.find(':').unwrap();
-        let number_string = &encoded_value[..colon_index];
-        let number = number_string.parse::<i64>().unwrap();
-        let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
-        return serde_json::Value::String(string.to_string());
-    } else {
-        panic!("Unhandled encoded value: {}", encoded_value)
-    }
+#[derive(Debug, Parser)]
+struct Args {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-// Usage: your_bittorrent.sh decode "<encoded_value>"
+#[derive(Debug, Subcommand)]
+#[non_exhaustive]
+enum Commands {
+    Decode { encoded_text: String },
+    Info { path: PathBuf },
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let command = &args[1];
+    let args = Args::parse();
+    match args.command {
+        Commands::Decode { encoded_text } => {
+            let (_, decoded_value) =
+                BencodeValue::parse(encoded_text.as_bytes()).expect("Invalid bencode value");
+            let decoded_json: serde_json::Value = decoded_value.into();
 
-    if command == "decode" {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        println!("Logs from your program will appear here!");
+            println!("{decoded_json}");
+        }
+        Commands::Info { path } => {
+            let encoded_data = fs::read(path).expect("Fail to read file");
+            println!("{encoded_data:?}");
 
-        // Uncomment this block to pass the first stage
-        // let encoded_value = &args[2];
-        // let decoded_value = decode_bencoded_value(encoded_value);
-        // println!("{}", decoded_value.to_string());
-    } else {
-        println!("unknown command: {}", args[1])
+            let (_, decoded_value) =
+                BencodeValue::parse(&encoded_data).expect("Invalid bencode value");
+            let decoded_json: serde_json::Value = decoded_value.into();
+
+            println!("{decoded_json:?}");
+        }
     }
 }
