@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use bittorrent_starter_rust::bencode_format::*;
 use serde_json::{json, Value};
 
@@ -81,6 +83,21 @@ fn test_parse_string_invalid() {
 }
 
 #[test]
+fn test_encode_string() {
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Data(BencodeText::new(b""))
+        .encode(&mut buf)
+        .unwrap();
+    assert_eq!(buf, b"0:");
+
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Data(BencodeText::new(b"hello"))
+        .encode(&mut buf)
+        .unwrap();
+    assert_eq!(buf, b"5:hello");
+}
+
+#[test]
 fn test_parse_int_valid() {
     check("i0e", json!(0), 0);
     check("i42e", json!(42), 0);
@@ -100,6 +117,21 @@ fn test_parse_int_invalid() {
 }
 
 #[test]
+fn test_encode_int() {
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Integer(0).encode(&mut buf).unwrap();
+    assert_eq!(buf, b"i0e");
+
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Integer(42).encode(&mut buf).unwrap();
+    assert_eq!(buf, b"i42e");
+
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Integer(-68).encode(&mut buf).unwrap();
+    assert_eq!(buf, b"i-68e");
+}
+
+#[test]
 fn test_parse_list_valid() {
     check("le", json!([]), 0);
     check("l1:ae", json!(["a"]), 0);
@@ -116,6 +148,22 @@ fn test_parse_list_valid() {
 fn test_parse_list_invalid() {
     check_err("l", "List miss end tag: []");
     check_err("l3:foo2:bare", "Invalid Bencode content: [114, 101]");
+}
+
+#[test]
+fn test_encode_list() {
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::List(vec![]).encode(&mut buf).unwrap();
+    assert_eq!(buf, b"le");
+
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::List(vec![
+        BencodeValue::Integer(56),
+        BencodeValue::Data(BencodeText::new(b"hello")),
+    ])
+    .encode(&mut buf)
+    .unwrap();
+    assert_eq!(buf, b"li56e5:helloe");
 }
 
 #[test]
@@ -141,4 +189,22 @@ fn test_parse_dict_invalid() {
     check_err("d3:foode", "Dict miss end tag: []");
     check_err("dlee", "String num is not a number=108: [108, 101, 101]");
     check_err("d3:fooe", "Invalid Bencode content: [101]");
+}
+
+#[test]
+fn test_encode_dict() {
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Dict(BTreeMap::new())
+        .encode(&mut buf)
+        .unwrap();
+    assert_eq!(buf, b"de");
+
+    let mut buf = Vec::with_capacity(64);
+    BencodeValue::Dict(BTreeMap::from([(
+        BencodeText::new(b"hi"),
+        BencodeValue::List(vec![]),
+    )]))
+    .encode(&mut buf)
+    .unwrap();
+    assert_eq!(buf, b"d2:hilee");
 }

@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    io,
     ops::{AddAssign, MulAssign},
 };
 
@@ -70,6 +71,12 @@ impl BencodeText {
         let (text, input) = input.split_at(str_len);
         Ok((input, Self::new(text)))
     }
+
+    pub fn encode<W: io::Write>(&self, out: &mut W) -> io::Result<()> {
+        write!(out, "{}:", self.0.len())?;
+        out.write_all(&self.0)?;
+        Ok(())
+    }
 }
 
 impl From<BencodeText> for String {
@@ -121,6 +128,30 @@ impl BencodeValue {
                 Ok((input, Self::Dict(dict)))
             }
             _ => Err(("Invalid Bencode content", input).into()),
+        }
+    }
+
+    pub fn encode<W: io::Write>(&self, out: &mut W) -> io::Result<()> {
+        match self {
+            BencodeValue::Data(txt) => txt.encode(out),
+            BencodeValue::Integer(val) => write!(out, "i{val}e"),
+            BencodeValue::List(values) => {
+                write!(out, "l")?;
+                for value in values {
+                    value.encode(out)?;
+                }
+                write!(out, "e")?;
+                Ok(())
+            }
+            BencodeValue::Dict(dict) => {
+                write!(out, "d")?;
+                for (key, value) in dict {
+                    key.encode(out)?;
+                    value.encode(out)?;
+                }
+                write!(out, "e")?;
+                Ok(())
+            }
         }
     }
 }
