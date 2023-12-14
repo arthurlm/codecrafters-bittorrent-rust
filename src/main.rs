@@ -31,11 +31,13 @@ fn main() {
 
             let (_, decoded_value) =
                 BencodeValue::parse(&encoded_data).expect("Invalid bencode value");
+
             let decoded_file: MetaInfoFile =
                 serde_json::from_value(decoded_value.into()).expect("Fail to decode torrent file");
 
             println!("Tracker URL: {}", decoded_file.announce);
             println!("Length: {}", decoded_file.info.length);
+            println!("Info Hash: {}", decoded_file.info.info_hash());
         }
     }
 }
