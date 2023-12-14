@@ -20,7 +20,7 @@ pub struct InfoSingleFile {
     pub length: i64,
     #[serde(rename = "piece length")]
     pub piece_length: i64,
-    pub pieces: String,
+    pub pieces: Vec<u8>,
 }
 
 impl InfoSingleFile {
@@ -40,7 +40,7 @@ impl InfoSingleFile {
             ),
             (
                 BencodeText::new(b"pieces"),
-                BencodeValue::Data(BencodeText::new(self.pieces.as_bytes())),
+                BencodeValue::Data(BencodeText::new(&self.pieces)),
             ),
         ]));
 

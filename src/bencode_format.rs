@@ -87,7 +87,17 @@ impl From<BencodeText> for String {
 
 impl From<BencodeText> for serde_json::Value {
     fn from(value: BencodeText) -> Self {
-        Self::String(value.into())
+        if value.0.is_ascii() {
+            Self::String(value.into())
+        } else {
+            Self::Array(
+                value
+                    .0
+                    .into_iter()
+                    .map(|x| serde_json::Value::Number(x.into()))
+                    .collect(),
+            )
+        }
     }
 }
 
