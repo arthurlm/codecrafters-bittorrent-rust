@@ -58,13 +58,17 @@ where
 pub struct BencodeText(Vec<u8>);
 
 impl BencodeText {
+    pub fn new(data: &[u8]) -> Self {
+        Self(data.to_vec())
+    }
+
     pub fn parse(input: &[u8]) -> IResult<Self> {
         let (input, str_len) = parse_num(input, b':')?;
         if str_len > input.len() {
             return Err(("String payload is too short", input).into());
         }
         let (text, input) = input.split_at(str_len);
-        Ok((input, Self(text.to_vec())))
+        Ok((input, Self::new(text)))
     }
 }
 

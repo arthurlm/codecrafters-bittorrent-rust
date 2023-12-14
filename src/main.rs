@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use bittorrent_starter_rust::{bencode_parser::BencodeValue, torrent_file::MetaInfoFile};
+use bittorrent_starter_rust::{bencode_format::BencodeValue, torrent_file::MetaInfoFile};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]

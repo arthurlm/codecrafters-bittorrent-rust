@@ -1,5 +1,50 @@
-use bittorrent_starter_rust::bencode_parser::*;
+use bittorrent_starter_rust::bencode_format::*;
 use serde_json::{json, Value};
+
+#[test]
+fn test_derive_error() {
+    // PartialEq + Eq
+    assert_eq!(ParseError::new("foo"), ParseError::new("foo"));
+    assert_ne!(ParseError::new("foo"), ParseError::new("bar"));
+
+    // Debug
+    assert_eq!(
+        format!("{:?}", ParseError::new("foo")),
+        "ParseError(\"foo\")"
+    );
+
+    // Display + Error
+    assert_eq!(
+        format!("{}", ParseError::new("foo")),
+        "Bencode parse error: foo"
+    );
+}
+
+#[test]
+fn test_derive_text() {
+    // PartialEq + Eq
+    assert_eq!(BencodeText::new(b"hello"), BencodeText::new(b"hello"));
+    assert_ne!(BencodeText::new(b"hello"), BencodeText::new(b"world"));
+
+    // Debug
+    assert_eq!(
+        format!("{:?}", BencodeText::new(b"hello")),
+        "BencodeText([104, 101, 108, 108, 111])"
+    );
+
+    // Ord
+    assert!(BencodeText::new(b"hello") < BencodeText::new(b"world"));
+}
+
+#[test]
+fn test_derive_value() {
+    // PartialEq + Eq
+    assert_eq!(BencodeValue::Integer(42), BencodeValue::Integer(42));
+    assert_ne!(BencodeValue::Integer(42), BencodeValue::Integer(72));
+
+    // Debug
+    assert_eq!(format!("{:?}", BencodeValue::Integer(42)), "Integer(42)");
+}
 
 fn check(input: &str, expected: Value, rem_len: usize) {
     let (rem, parsed) = BencodeValue::parse(input.as_bytes()).unwrap();
@@ -94,4 +139,6 @@ fn test_parse_dict_valid() {
 fn test_parse_dict_invalid() {
     check_err("d", "Dict miss end tag: []");
     check_err("d3:foode", "Dict miss end tag: []");
+    check_err("dlee", "String num is not a number=108: [108, 101, 101]");
+    check_err("d3:fooe", "Invalid Bencode content: [101]");
 }
