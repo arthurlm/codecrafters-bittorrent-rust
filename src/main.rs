@@ -38,6 +38,11 @@ fn main() {
             println!("Tracker URL: {}", decoded_file.announce);
             println!("Length: {}", decoded_file.info.length);
             println!("Info Hash: {}", decoded_file.info.info_hash());
+            println!("Piece Length: {}", decoded_file.info.piece_length);
+            println!("Piece Hashes:");
+            for piece_hash in decoded_file.info.pieces_hashes() {
+                println!("{piece_hash}");
+            }
         }
     }
 }

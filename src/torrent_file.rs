@@ -53,4 +53,12 @@ impl InfoSingleFile {
         hasher.update(buf);
         hasher.finalize().encode_hex()
     }
+
+    pub fn pieces_hashes(&self) -> Vec<String> {
+        assert_eq!(self.pieces.len() % 20, 0, "pieces is not a multiple of 20");
+        self.pieces
+            .chunks(20)
+            .map(|piece| piece.encode_hex())
+            .collect()
+    }
 }

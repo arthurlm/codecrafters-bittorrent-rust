@@ -17,3 +17,33 @@ fn test_info_hash() {
 
     assert_eq!(info.info_hash(), "a8d8cc6ac9e649158452dee9800c15571c491656");
 }
+
+#[test]
+#[should_panic = "pieces is not a multiple of 20"]
+fn test_bad_pieces_hashes() {
+    let info = InfoSingleFile {
+        name: "test.txt".to_string(),
+        length: 296,
+        piece_length: 312,
+        pieces: TEST_PIECES[..43].to_vec(),
+    };
+    info.pieces_hashes();
+}
+
+#[test]
+fn test_pieces_hashes() {
+    let info = InfoSingleFile {
+        name: "test.txt".to_string(),
+        length: 296,
+        piece_length: 312,
+        pieces: TEST_PIECES.to_vec(),
+    };
+    assert_eq!(
+        info.pieces_hashes(),
+        vec![
+            "efbfbd76efbfbd7a2aefbfbdefbfbdefbfbdefbf",
+            "bd6b136726efbfbd0fefbfbdefbfbd03022d6e22",
+            "75efbfbd04efbfbd766656736eefbfbdefbfbd10"
+        ]
+    );
+}
