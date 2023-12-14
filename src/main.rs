@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use bittorrent_starter_rust::bencode_parser::BencodeValue;
+use bittorrent_starter_rust::{bencode_parser::BencodeValue, torrent_file::MetaInfoFile};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -28,13 +28,14 @@ fn main() {
         }
         Commands::Info { path } => {
             let encoded_data = fs::read(path).expect("Fail to read file");
-            println!("{encoded_data:?}");
 
             let (_, decoded_value) =
                 BencodeValue::parse(&encoded_data).expect("Invalid bencode value");
-            let decoded_json: serde_json::Value = decoded_value.into();
+            let decoded_file: MetaInfoFile =
+                serde_json::from_value(decoded_value.into()).expect("Fail to decode torrent file");
 
-            println!("{decoded_json:?}");
+            println!("Tracker URL: {}", decoded_file.announce);
+            println!("Length: {}", decoded_file.info.length);
         }
     }
 }
