@@ -48,8 +48,8 @@ fn test_derive_value() {
     assert_eq!(format!("{:?}", BencodeValue::Integer(42)), "Integer(42)");
 }
 
-fn check(input: &str, expected: Value, rem_len: usize) {
-    let (rem, parsed) = BencodeValue::parse(input.as_bytes()).unwrap();
+fn check(input: &[u8], expected: Value, rem_len: usize) {
+    let (rem, parsed) = BencodeValue::parse(input).unwrap();
     let value: Value = parsed.into();
     assert_eq!(value, expected);
     assert_eq!(rem.len(), rem_len);
@@ -68,10 +68,15 @@ fn test_parse_invalid_content() {
 
 #[test]
 fn test_parse_string_valid() {
-    check("0:", json!(""), 0); // Simple case
-    check("5:hello", json!("hello"), 0); // Simple case
-    check("5:hello world", json!("hello"), 6); // With extra
-    check("12:hello world !", json!("hello world "), 1); // Multiple bytes len
+    check(b"0:", json!(""), 0); // Simple case
+    check(b"5:hello", json!("hello"), 0); // Simple case
+    check(
+        &[b'5', b':', 253, 196, 218, 124, 129],
+        json!([253, 196, 218, 124, 129]),
+        0,
+    ); // Non ascii case
+    check(b"5:hello world", json!("hello"), 6); // With extra
+    check(b"12:hello world !", json!("hello world "), 1); // Multiple bytes len
 }
 
 #[test]
@@ -99,13 +104,13 @@ fn test_encode_string() {
 
 #[test]
 fn test_parse_int_valid() {
-    check("i0e", json!(0), 0);
-    check("i42e", json!(42), 0);
-    check("i89461eHello", json!(89461), 5);
+    check(b"i0e", json!(0), 0);
+    check(b"i42e", json!(42), 0);
+    check(b"i89461eHello", json!(89461), 5);
 
-    check("i-0e", json!(0), 0);
-    check("i-9e", json!(-9), 0);
-    check("i-89461eHello", json!(-89461), 5);
+    check(b"i-0e", json!(0), 0);
+    check(b"i-9e", json!(-9), 0);
+    check(b"i-89461eHello", json!(-89461), 5);
 }
 
 #[test]
@@ -133,12 +138,12 @@ fn test_encode_int() {
 
 #[test]
 fn test_parse_list_valid() {
-    check("le", json!([]), 0);
-    check("l1:ae", json!(["a"]), 0);
-    check("l1:ai42ee", json!(["a", 42]), 0);
-    check("l4:spam4:eggse", json!(["spam", "eggs"]), 0);
+    check(b"le", json!([]), 0);
+    check(b"l1:ae", json!(["a"]), 0);
+    check(b"l1:ai42ee", json!(["a", 42]), 0);
+    check(b"l4:spam4:eggse", json!(["spam", "eggs"]), 0);
     check(
-        "ll3:foo3:barelei56el5:helloee",
+        b"ll3:foo3:barelei56el5:helloee",
         json!([["foo", "bar"], [], 56, ["hello"]]),
         0,
     );
@@ -168,19 +173,23 @@ fn test_encode_list() {
 
 #[test]
 fn test_parse_dict_valid() {
-    check("de", json!({}), 0);
+    check(b"de", json!({}), 0);
     check(
-        "d3:cow3:moo4:spam4:eggse",
+        b"d3:cow3:moo4:spam4:eggse",
         json!({"cow": "moo", "spam": "eggs"}),
         0,
     );
     check(
-        "d9:publisher3:bob17:publisher-webpage15:www.example.com18:publisher.location4:homee",
+        b"d9:publisher3:bob17:publisher-webpage15:www.example.com18:publisher.location4:homee",
         json!({ "publisher": "bob", "publisher-webpage": "www.example.com", "publisher.location": "home" } ),
         0,
     );
-    check("d3:foolee", json!({"foo": []}), 0);
-    check("d3:fooli42ee3:bari-8ee", json!({"foo": [42], "bar": -8}), 0);
+    check(b"d3:foolee", json!({"foo": []}), 0);
+    check(
+        b"d3:fooli42ee3:bari-8ee",
+        json!({"foo": [42], "bar": -8}),
+        0,
+    );
 }
 
 #[test]
