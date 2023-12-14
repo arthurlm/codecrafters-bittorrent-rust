@@ -1,10 +1,32 @@
-use bittorrent_starter_rust::torrent_file::InfoSingleFile;
+use bittorrent_starter_rust::torrent_file::{InfoSingleFile, MetaInfoFile};
+use serde_json::json;
 
 const TEST_PIECES: [u8; 60] = [
     239, 191, 189, 118, 239, 191, 189, 122, 42, 239, 191, 189, 239, 191, 189, 239, 191, 189, 239,
     191, 189, 107, 19, 103, 38, 239, 191, 189, 15, 239, 191, 189, 239, 191, 189, 3, 2, 45, 110, 34,
     117, 239, 191, 189, 4, 239, 191, 189, 118, 102, 86, 115, 110, 239, 191, 189, 239, 191, 189, 16,
 ];
+
+#[test]
+fn test_derive() {
+    // Deserialize
+    let meta_info: MetaInfoFile = serde_json::from_value(json!({
+        "announce": "http://test.torrent.com",
+        "info": {
+            "name": "test.txt",
+            "length": 296,
+            "piece length": 312,
+            "pieces": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        },
+        "created_by": null,
+        "comment": null,
+
+    }))
+    .unwrap();
+
+    // Debug
+    assert_eq!(format!("{meta_info:?}"), "MetaInfoFile { announce: \"http://test.torrent.com\", info: InfoSingleFile { name: \"test.txt\", length: 296, piece_length: 312, pieces: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] }, created_by: None, comment: None }");
+}
 
 #[test]
 fn test_info_hash() {
