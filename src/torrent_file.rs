@@ -24,7 +24,7 @@ pub struct InfoSingleFile {
 }
 
 impl InfoSingleFile {
-    pub fn info_hash(&self) -> String {
+    pub fn info_hash_bytes(&self) -> [u8; 20] {
         let content = BencodeValue::Dict(BTreeMap::from([
             (
                 BencodeText::new(b"name"),
@@ -51,7 +51,11 @@ impl InfoSingleFile {
 
         let mut hasher = Sha1::new();
         hasher.update(buf);
-        hasher.finalize().encode_hex()
+        hasher.finalize().into()
+    }
+
+    pub fn info_hash(&self) -> String {
+        self.info_hash_bytes().encode_hex()
     }
 
     pub fn pieces_hashes(&self) -> Vec<String> {
