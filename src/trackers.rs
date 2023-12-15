@@ -7,7 +7,7 @@ use crate::{
     url_encode::url_encode, PEER_ID,
 };
 
-pub async fn query(meta_info: MetaInfoFile) -> Result<TrackerResponse, TorrentError> {
+pub async fn query(meta_info: &MetaInfoFile) -> Result<TrackerResponse, TorrentError> {
     let client = reqwest::Client::new();
     let raw_data = client
         .get(format!(

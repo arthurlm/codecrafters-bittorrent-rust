@@ -15,10 +15,26 @@ struct Args {
 #[derive(Debug, Subcommand)]
 #[non_exhaustive]
 enum Commands {
-    Decode { encoded_text: String },
-    Info { path: PathBuf },
-    Peers { path: PathBuf },
-    Handshake { path: PathBuf, addr: SocketAddr },
+    Decode {
+        encoded_text: String,
+    },
+    Info {
+        path: PathBuf,
+    },
+    Peers {
+        path: PathBuf,
+    },
+    Handshake {
+        path: PathBuf,
+        addr: SocketAddr,
+    },
+    #[clap(alias = "download_piece")]
+    DownloadPiece {
+        #[arg(short = 'o')]
+        output_path: PathBuf,
+        meta_info_path: PathBuf,
+        piece_id: usize,
+    },
 }
 
 #[tokio::main]
@@ -46,24 +62,51 @@ async fn main() {
         }
         Commands::Peers { path } => {
             let meta_info = read_file(path);
-            let response = trackers::query(meta_info)
+            let tracker_response = trackers::query(&meta_info)
                 .await
                 .expect("Fail to query tracker");
 
-            for peer_addr in response.peer_addrs() {
+            for peer_addr in tracker_response.peer_addrs() {
                 println!("{peer_addr}");
             }
         }
         Commands::Handshake { path, addr } => {
             let meta_info = read_file(path);
 
-            let mut peer = Peer::connect(addr).await.expect("Fail to connect peer");
+            let mut peer = Peer::connect(&addr).await.expect("Fail to connect peer");
             let peer_id = peer
                 .send_handshake(&meta_info)
                 .await
                 .expect("Fail to send handshake");
 
             println!("Peer ID: {}", peer_id.encode_hex::<String>());
+        }
+        Commands::DownloadPiece {
+            // output_path,
+            meta_info_path,
+            // piece_id,
+            ..
+        } => {
+            let meta_info = read_file(meta_info_path);
+            let tracker_response = trackers::query(&meta_info)
+                .await
+                .expect("Fail to query tracker");
+
+            let peer_addrs = tracker_response.peer_addrs();
+            let peer_addr = peer_addrs.first().expect("No peer for given .torrent");
+
+            let mut peer = Peer::connect(peer_addr)
+                .await
+                .expect("Fail to connect peer");
+
+            peer.send_handshake(&meta_info)
+                .await
+                .expect("Fail to send handshake");
+
+            println!("Waiting for message from {peer:?}");
+            while let Ok(msg) = peer.read_message().await {
+                println!("{msg:?}");
+            }
         }
     }
 }
