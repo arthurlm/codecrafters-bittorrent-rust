@@ -4,6 +4,7 @@ pub mod peers;
 pub mod torrent_file;
 pub mod trackers;
 pub mod url_encode;
+pub mod utils;
 
 pub const PEER_ID: &str = "AL-20231215-1.0.0.00";
 

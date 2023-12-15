@@ -2,9 +2,8 @@ use std::collections::BTreeMap;
 
 use hex::ToHex;
 use serde::Deserialize;
-use sha1::{Digest, Sha1};
 
-use crate::bencode_format::*;
+use crate::{bencode_format::*, utils::hash_sha1};
 
 #[derive(Debug, Deserialize)]
 pub struct MetaInfoFile {
@@ -49,9 +48,7 @@ impl InfoSingleFile {
             .encode(&mut buf)
             .expect("Fail to bencode info in memory");
 
-        let mut hasher = Sha1::new();
-        hasher.update(buf);
-        hasher.finalize().into()
+        hash_sha1(&buf)
     }
 
     pub fn info_hash(&self) -> String {

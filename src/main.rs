@@ -6,10 +6,10 @@ use bittorrent_starter_rust::{
     peers::{Peer, PeerMessage},
     torrent_file::MetaInfoFile,
     trackers,
+    utils::hash_sha1,
 };
 use clap::{Parser, Subcommand};
 use hex::ToHex;
-use sha1::{Digest, Sha1};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -215,9 +215,7 @@ async fn download_piece(
     let contents: Vec<_> = chunks.into_iter().flat_map(|x| x.1).collect();
 
     // Check signature
-    let mut hasher = Sha1::new();
-    hasher.update(&contents);
-    let contents_hash: [u8; 20] = hasher.finalize().into();
+    let contents_hash = hash_sha1(&contents);
     let expected_hash = &meta_info.info.pieces_hashes()[piece_id as usize];
     assert_eq!(contents_hash.encode_hex::<String>(), *expected_hash);
 
