@@ -1,6 +1,6 @@
-use std::{io, net::SocketAddr};
+use std::net::SocketAddr;
 
-use thiserror::Error;
+use hex::ToHex;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpStream,
@@ -11,32 +11,38 @@ use crate::{error::TorrentError, torrent_file::MetaInfoFile, PEER_ID};
 #[derive(Debug)]
 pub struct Peer {
     stream: TcpStream,
+    peer_id: [u8; 20],
 }
 
 impl Peer {
-    pub async fn connect(addr: &SocketAddr) -> Result<Self, TorrentError> {
-        let stream = TcpStream::connect(addr).await?;
-        Ok(Self { stream })
+    pub async fn connect(
+        addr: &SocketAddr,
+        meta_info: &MetaInfoFile,
+    ) -> Result<Self, TorrentError> {
+        // TCP connect
+        let mut stream = TcpStream::connect(addr).await?;
+
+        // Send handshake
+        stream.write_u8(19).await?;
+        stream.write_all(b"BitTorrent protocol").await?;
+        stream.write_all(&[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+        stream.write_all(&meta_info.info.info_hash_bytes()).await?;
+        stream.write_all(PEER_ID.as_bytes()).await?;
+        stream.flush().await?;
+
+        // Read handshake response header
+        let mut response_payload = [0; 48];
+        stream.read_exact(&mut response_payload).await?;
+
+        // Read handshake response peer ID
+        let mut peer_id = [0; 20];
+        stream.read_exact(&mut peer_id).await?;
+
+        Ok(Self { stream, peer_id })
     }
 
-    pub async fn send_handshake(&mut self, meta_info: &MetaInfoFile) -> io::Result<[u8; 20]> {
-        // Send request
-        let mut request_payload = Vec::<u8>::with_capacity(68);
-        request_payload.push(19);
-        request_payload.extend(b"BitTorrent protocol");
-        request_payload.extend([0, 0, 0, 0, 0, 0, 0, 0]);
-        request_payload.extend(meta_info.info.info_hash_bytes());
-        request_payload.extend(PEER_ID.as_bytes());
-        self.stream.write_all(&request_payload).await?;
-
-        // Read response
-        let mut response_payload = [0; 68];
-        self.stream.read_exact(&mut response_payload).await?;
-
-        // NOTE: maybe there is a better way to do this ...
-        let mut output = [0; 20];
-        output.clone_from_slice(&response_payload[48..68]);
-        Ok(output)
+    pub fn id(&self) -> String {
+        self.peer_id.encode_hex()
     }
 
     pub async fn read_message(&mut self) -> Result<PeerMessage, TorrentError> {
@@ -45,42 +51,6 @@ impl Peer {
 
     pub async fn send_message(&mut self, msg: &PeerMessage) -> Result<(), TorrentError> {
         msg.write(&mut self.stream).await
-    }
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-#[error("Invalid message ID")]
-pub struct InvalidMessageId;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum PeerMessageId {
-    Choke,
-    Unchoke,
-    Interested,
-    NotInterested,
-    Have,
-    BitField,
-    Request,
-    Piece,
-    Cancel,
-}
-
-impl TryFrom<u8> for PeerMessageId {
-    type Error = InvalidMessageId;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Choke),
-            1 => Ok(Self::Unchoke),
-            2 => Ok(Self::Interested),
-            3 => Ok(Self::NotInterested),
-            4 => Ok(Self::Have),
-            5 => Ok(Self::BitField),
-            6 => Ok(Self::Request),
-            7 => Ok(Self::Piece),
-            8 => Ok(Self::Cancel),
-            _ => Err(InvalidMessageId),
-        }
     }
 }
 
@@ -110,26 +80,36 @@ pub enum PeerMessage {
 }
 
 impl PeerMessage {
+    const MSG_ID_CHOKE: u8 = 0;
+    const MSG_ID_UNCHOKE: u8 = 1;
+    const MSG_ID_INTERESTED: u8 = 2;
+    const MSG_ID_NOT_INTERESTED: u8 = 3;
+    const MSG_ID_HAVE: u8 = 4;
+    const MSG_ID_BIT_FIELD: u8 = 5;
+    const MSG_ID_REQUEST: u8 = 6;
+    const MSG_ID_PIECE: u8 = 7;
+    const MSG_ID_CANCEL: u8 = 8;
+
     pub async fn read<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Self, TorrentError> {
         let msg_size = reader.read_u32().await?;
         let msg_id_val = reader.read_u8().await?;
 
-        match PeerMessageId::try_from(msg_id_val)? {
-            PeerMessageId::Choke => Ok(PeerMessage::Choke),
-            PeerMessageId::Unchoke => Ok(PeerMessage::Unchoke),
-            PeerMessageId::Interested => Ok(PeerMessage::Interested),
-            PeerMessageId::NotInterested => Ok(PeerMessage::NotInterested),
-            PeerMessageId::Have => {
+        match msg_id_val {
+            Self::MSG_ID_CHOKE => Ok(PeerMessage::Choke),
+            Self::MSG_ID_UNCHOKE => Ok(PeerMessage::Unchoke),
+            Self::MSG_ID_INTERESTED => Ok(PeerMessage::Interested),
+            Self::MSG_ID_NOT_INTERESTED => Ok(PeerMessage::NotInterested),
+            Self::MSG_ID_HAVE => {
                 assert_eq!(msg_size, 5, "Invalid have message size");
                 let piece_id = reader.read_u32().await?;
                 Ok(PeerMessage::Have(piece_id))
             }
-            PeerMessageId::BitField => {
+            Self::MSG_ID_BIT_FIELD => {
                 let mut block = vec![0; (msg_size - 1) as usize];
                 reader.read_exact(&mut block).await?;
                 Ok(PeerMessage::BitField(block))
             }
-            PeerMessageId::Request => {
+            Self::MSG_ID_REQUEST => {
                 assert_eq!(msg_size, 13, "Invalid request message size");
                 let index = reader.read_u32().await?;
                 let begin = reader.read_u32().await?;
@@ -140,7 +120,7 @@ impl PeerMessage {
                     length,
                 })
             }
-            PeerMessageId::Piece => {
+            Self::MSG_ID_PIECE => {
                 let index = reader.read_u32().await?;
                 let begin = reader.read_u32().await?;
                 let mut block = vec![0; (msg_size - 9) as usize];
@@ -151,7 +131,7 @@ impl PeerMessage {
                     block,
                 })
             }
-            PeerMessageId::Cancel => {
+            Self::MSG_ID_CANCEL => {
                 assert_eq!(msg_size, 13, "Invalid cancel message size");
                 let index = reader.read_u32().await?;
                 let begin = reader.read_u32().await?;
@@ -162,6 +142,7 @@ impl PeerMessage {
                     length,
                 })
             }
+            _ => Err(TorrentError::InvalidMessageId),
         }
     }
 
@@ -191,7 +172,7 @@ impl PeerMessage {
             PeerMessage::BitField(block) => {
                 writer.write_u32(block.len() as u32 + 1).await?;
                 writer.write_u8(5).await?;
-                writer.write_all(&block).await?;
+                writer.write_all(block).await?;
             }
             PeerMessage::Request {
                 index,
@@ -213,7 +194,7 @@ impl PeerMessage {
                 writer.write_u8(7).await?;
                 writer.write_u32(*index).await?;
                 writer.write_u32(*begin).await?;
-                writer.write_all(&block).await?;
+                writer.write_all(block).await?;
             }
             PeerMessage::Cancel {
                 index,

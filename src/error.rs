@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::{bencode_format::ParseError, peers::InvalidMessageId};
+use crate::bencode_format::ParseError;
 
 #[derive(Debug, Error)]
 pub enum TorrentError {
@@ -19,7 +19,7 @@ pub enum TorrentError {
     Json(String),
 
     #[error("Invalid message ID")]
-    InvalidMessageId(#[from] InvalidMessageId),
+    InvalidMessageId,
 }
 
 impl From<reqwest::Error> for TorrentError {

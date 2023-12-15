@@ -1,46 +1,5 @@
-use bittorrent_starter_rust::peers::{InvalidMessageId, PeerMessage, PeerMessageId};
+use bittorrent_starter_rust::peers::PeerMessage;
 use tokio::io::{BufReader, BufWriter};
-
-#[test]
-fn test_error_derive() {
-    // Debug + Error
-    assert_eq!(format!("{InvalidMessageId:?}"), "InvalidMessageId");
-    assert_eq!(format!("{InvalidMessageId}"), "Invalid message ID");
-
-    // PartialEq + Eq
-    assert_eq!(InvalidMessageId, InvalidMessageId);
-}
-
-#[test]
-fn test_peer_message_id_derive() {
-    // Debug
-    assert_eq!(format!("{:?}", PeerMessageId::Cancel), "Cancel");
-
-    // PartialEq + Eq
-    assert_eq!(PeerMessageId::Cancel, PeerMessageId::Cancel);
-    assert_ne!(PeerMessageId::Cancel, PeerMessageId::BitField);
-
-    // Clone + Copy
-    assert_eq!(PeerMessageId::Cancel.clone(), PeerMessageId::Cancel);
-    assert_eq!(*&PeerMessageId::Cancel, PeerMessageId::Cancel);
-
-    // Repr
-    assert_eq!(PeerMessageId::Cancel as u8, 8);
-}
-
-#[test]
-fn test_peer_message_id_from_u8() {
-    assert_eq!(PeerMessageId::try_from(0), Ok(PeerMessageId::Choke));
-    assert_eq!(PeerMessageId::try_from(1), Ok(PeerMessageId::Unchoke));
-    assert_eq!(PeerMessageId::try_from(2), Ok(PeerMessageId::Interested));
-    assert_eq!(PeerMessageId::try_from(3), Ok(PeerMessageId::NotInterested));
-    assert_eq!(PeerMessageId::try_from(4), Ok(PeerMessageId::Have));
-    assert_eq!(PeerMessageId::try_from(5), Ok(PeerMessageId::BitField));
-    assert_eq!(PeerMessageId::try_from(6), Ok(PeerMessageId::Request));
-    assert_eq!(PeerMessageId::try_from(7), Ok(PeerMessageId::Piece));
-    assert_eq!(PeerMessageId::try_from(8), Ok(PeerMessageId::Cancel));
-    assert_eq!(PeerMessageId::try_from(9), Err(InvalidMessageId));
-}
 
 #[test]
 fn test_peer_message_derive() {

@@ -83,13 +83,11 @@ async fn main() {
         Commands::Handshake { path, addr } => {
             let meta_info = read_file(path);
 
-            let mut peer = Peer::connect(&addr).await.expect("Fail to connect peer");
-            let peer_id = peer
-                .send_handshake(&meta_info)
+            let peer = Peer::connect(&addr, &meta_info)
                 .await
-                .expect("Fail to send handshake");
+                .expect("Fail to connect peer");
 
-            println!("Peer ID: {}", peer_id.encode_hex::<String>());
+            println!("Peer ID: {}", peer.id());
         }
         Commands::DownloadPiece {
             output_path,
@@ -132,15 +130,14 @@ fn read_file(path: PathBuf) -> MetaInfoFile {
 
 async fn connect_any_peer_addr(meta_info: &MetaInfoFile) -> Result<Peer, TorrentError> {
     // Query tracker
-    let tracker_response = trackers::query(&meta_info).await?;
+    let tracker_response = trackers::query(meta_info).await?;
 
     // Take 1st peer
     let peer_addrs = tracker_response.peer_addrs();
     let peer_addr = peer_addrs.first().expect("No peer for given .torrent");
 
     // Connect to it
-    let mut peer = Peer::connect(peer_addr).await?;
-    peer.send_handshake(&meta_info).await?;
+    let mut peer = Peer::connect(peer_addr, meta_info).await?;
 
     // Read first message which should be a bit field
     assert!(matches!(
@@ -215,7 +212,7 @@ async fn download_piece(
 
     // Reorder chunk and flatten the data
     chunks.sort_by_key(|x| x.0);
-    let contents: Vec<_> = chunks.into_iter().map(|x| x.1).flatten().collect();
+    let contents: Vec<_> = chunks.into_iter().flat_map(|x| x.1).collect();
 
     // Check signature
     let mut hasher = Sha1::new();
