@@ -223,13 +223,12 @@ async fn download_piece(
 }
 
 async fn download(meta_info: &MetaInfoFile, peer: &mut Peer) -> Result<Vec<u8>, TorrentError> {
-    let piece_count = meta_info.info.pieces_count();
-    let mut pieces = Vec::with_capacity(piece_count);
+    let mut output = Vec::with_capacity(meta_info.info.length as usize);
 
-    for piece_id in 0..piece_count {
+    for piece_id in 0..meta_info.info.pieces_count() {
         let piece_content = download_piece(meta_info, peer, piece_id as u32).await?;
-        pieces.push(piece_content);
+        output.extend(piece_content);
     }
 
-    Ok(pieces.into_iter().flatten().collect())
+    Ok(output)
 }
