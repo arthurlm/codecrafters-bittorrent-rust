@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{
     bencode_format::BencodeValue, error::TorrentError, torrent_file::MetaInfoFile,
-    url_encode::url_encode,
+    url_encode::url_encode, PEER_ID,
 };
 
 pub async fn query(meta_info: MetaInfoFile) -> Result<TrackerResponse, TorrentError> {
@@ -14,11 +14,10 @@ pub async fn query(meta_info: MetaInfoFile) -> Result<TrackerResponse, TorrentEr
             "{}?info_hash={}",
             meta_info.announce,
             url_encode(&meta_info.info.info_hash_bytes()),
-            // url_encode(&hex::decode("d69f91e6b2ae4c542468d1073a71d4ea13879a7f").unwrap()), // WTF:
         ))
         .query(&[("left", meta_info.info.length.to_string())])
         .query(&[
-            ("peer_id", "alemoigne-bittorrent"),
+            ("peer_id", PEER_ID),
             ("port", "6881"),
             ("uploaded", "0"),
             ("downloaded", "0"),
