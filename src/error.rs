@@ -1,3 +1,5 @@
+use std::io;
+
 use thiserror::Error;
 
 use crate::bencode_format::ParseError;
@@ -6,6 +8,9 @@ use crate::bencode_format::ParseError;
 pub enum TorrentError {
     #[error("HTTP: {0}")]
     Http(String),
+
+    #[error("I/O: {0}")]
+    Io(String),
 
     #[error("Bencode: {0}")]
     Bencode(String),
@@ -17,6 +22,12 @@ pub enum TorrentError {
 impl From<reqwest::Error> for TorrentError {
     fn from(err: reqwest::Error) -> Self {
         Self::Http(err.to_string())
+    }
+}
+
+impl From<io::Error> for TorrentError {
+    fn from(err: io::Error) -> Self {
+        Self::Io(err.to_string())
     }
 }
 

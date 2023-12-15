@@ -1,7 +1,10 @@
-use std::{fs, path::PathBuf};
+use std::{fs, net::SocketAddr, path::PathBuf};
 
-use bittorrent_starter_rust::{bencode_format::BencodeValue, torrent_file::MetaInfoFile, trackers};
+use bittorrent_starter_rust::{
+    bencode_format::BencodeValue, peers::Peer, torrent_file::MetaInfoFile, trackers,
+};
 use clap::{Parser, Subcommand};
+use hex::ToHex;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -15,6 +18,7 @@ enum Commands {
     Decode { encoded_text: String },
     Info { path: PathBuf },
     Peers { path: PathBuf },
+    Handshake { path: PathBuf, addr: SocketAddr },
 }
 
 #[tokio::main]
@@ -42,10 +46,24 @@ async fn main() {
         }
         Commands::Peers { path } => {
             let meta_info = read_file(path);
-            let response = trackers::query(meta_info).await.unwrap();
+            let response = trackers::query(meta_info)
+                .await
+                .expect("Fail to query tracker");
+
             for peer_addr in response.peer_addrs() {
                 println!("{peer_addr}");
             }
+        }
+        Commands::Handshake { path, addr } => {
+            let meta_info = read_file(path);
+
+            let mut peer = Peer::connect(addr).await.expect("Fail to connect peer");
+            let peer_id = peer
+                .send_handshake(&meta_info)
+                .await
+                .expect("Fail to send handshake");
+
+            println!("Peer ID: {}", peer_id.encode_hex::<String>());
         }
     }
 }
