@@ -17,9 +17,9 @@ pub struct MetaInfoFile {
 #[derive(Debug, Deserialize)]
 pub struct InfoSingleFile {
     pub name: String,
-    pub length: i64,
+    pub length: u32,
     #[serde(rename = "piece length")]
-    pub piece_length: i64,
+    pub piece_length: u32,
     pub pieces: Vec<u8>,
 }
 
@@ -32,11 +32,11 @@ impl InfoSingleFile {
             ),
             (
                 BencodeText::new(b"length"),
-                BencodeValue::Integer(self.length),
+                BencodeValue::Integer(self.length as i64),
             ),
             (
                 BencodeText::new(b"piece length"),
-                BencodeValue::Integer(self.piece_length),
+                BencodeValue::Integer(self.piece_length as i64),
             ),
             (
                 BencodeText::new(b"pieces"),
@@ -56,6 +56,11 @@ impl InfoSingleFile {
 
     pub fn info_hash(&self) -> String {
         self.info_hash_bytes().encode_hex()
+    }
+
+    pub fn pieces_count(&self) -> usize {
+        assert_eq!(self.pieces.len() % 20, 0, "pieces is not a multiple of 20");
+        self.pieces.len() / 20
     }
 
     pub fn pieces_hashes(&self) -> Vec<String> {

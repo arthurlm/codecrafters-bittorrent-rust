@@ -42,6 +42,18 @@ fn test_info_hash() {
 
 #[test]
 #[should_panic = "pieces is not a multiple of 20"]
+fn test_bad_pieces_count() {
+    let info = InfoSingleFile {
+        name: "test.txt".to_string(),
+        length: 296,
+        piece_length: 312,
+        pieces: TEST_PIECES[..43].to_vec(),
+    };
+    info.pieces_count();
+}
+
+#[test]
+#[should_panic = "pieces is not a multiple of 20"]
 fn test_bad_pieces_hashes() {
     let info = InfoSingleFile {
         name: "test.txt".to_string(),
@@ -60,6 +72,8 @@ fn test_pieces_hashes() {
         piece_length: 312,
         pieces: TEST_PIECES.to_vec(),
     };
+
+    assert_eq!(info.pieces_count(), 3);
     assert_eq!(
         info.pieces_hashes(),
         vec![
